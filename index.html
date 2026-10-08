@@ -398,13 +398,14 @@
         }
     /* deck-mobile-fix:hero */ .hero{overflow:hidden}@supports (overflow-x:clip){.hero{overflow:visible;overflow-x:clip}}
     /* deck-mobile-fix:phone */ @media (max-width:640px){.diagram-box,.tier-fill,.section-divider>span,.action-btn{white-space:normal;overflow-wrap:anywhere}.diagram-grid>*,.diagram-panel,.diagram-box,.code-block,.callout,.metric,.control-group,.control-row>*,.pipeline-body,.roll-track>*,.tier-fill,.timeline-row>*{min-width:0;max-width:100%}p,li,a,code,td,th,.callout,.diagram-panel{overflow-wrap:break-word}pre{max-width:100%;overflow-x:auto}table{display:block;max-width:100%;overflow-x:auto}.katex-display,.bits,.canvas-wrap,.influence-map-wrapper,.timeline-track,div:has(>.bank-cell){max-width:100%;overflow-x:auto;overflow-y:hidden}select,input,img,video,iframe,.action-btn{max-width:100%}canvas{max-width:100%;height:auto}}
-    </style>
+        /* era-tag (brief 28) */ .era-tag{display:inline-block;font-family:var(--font-mono);font-size:.7rem;font-weight:500;letter-spacing:.02em;text-transform:none;padding:.1rem .55rem;border-radius:999px;border:1px solid var(--border);color:var(--text-secondary);background:var(--bg-code);vertical-align:middle;margin-left:.4rem;white-space:nowrap}@media (max-width:640px){.era-tag{white-space:normal;max-width:100%}}.era-tag.now{color:var(--accent);border-color:var(--accent)}.spec-cite{font-size:.8rem;color:var(--text-secondary);margin-top:.6rem}.spec-cite a,.callout a,.diagram-panel a{color:var(--accent)}
+</style>
 </head>
 <body>
 <header class="hero">
     <div class="series-label">Model Context Protocol Series — Presentation 04</div>
     <h1>Security &amp; <span class="accent">OAuth 2.1</span></h1>
-    <p class="subtitle">The MCP threat model and the spec mechanisms designed to defuse it — OAuth 2.1 with PKCE, RFC 9728 / 8414 / 7591 / 8707, audience binding, the confused-deputy attack, second-channel prompt injection, tool poisoning, sandboxing, and logging hygiene.</p>
+    <p class="subtitle">The MCP threat model and the spec mechanisms designed to defuse it — OAuth 2.1 with PKCE, RFC 9728 / 8414 / 7591 / 8707, audience binding, the confused-deputy attack, second-channel prompt injection, tool poisoning, sandboxing, and logging hygiene. Updated for revision 2026-07-28: Client ID Metadata Documents replace dynamic client registration as the default, and <code>iss</code> is checked; handshake-era material is tagged &ldquo;before 2026-07-28&rdquo;.</p>
 
     <div class="tags">
         <span class="tag">OAuth 2.1</span>
@@ -439,6 +440,7 @@
         <li><a href="#slide-01">The Threat Surface &mdash; Three Attacker Positions</a></li>
         <li><a href="#slide-02">OAuth 2.1 in MCP &mdash; The Canonical Flow</a></li>
         <li><a href="#slide-03">Discovery &mdash; RFC 9728, RFC 8414, RFC 7591</a></li>
+        <li><a href="#slide-03b">Client Registration in 2026-07-28 &mdash; Client ID Metadata Documents</a> <span class="era-tag now">2026-07-28</span></li>
         <li><a href="#slide-04">RFC 8707 Audience Binding &amp; the Confused Deputy</a></li>
         <li><a href="#slide-05">Prompt Injection Through Tool Output</a></li>
         <li><a href="#slide-06">Tool Poisoning &amp; Rug-Pull Updates</a></li>
@@ -546,7 +548,9 @@
     <div class="callout">
         <div class="callout-label">Three RFCs in one diagram</div>
         <p><strong>RFC 9728</strong> (OAuth 2.0 Protected Resource Metadata) tells you which authorization server to talk to. <strong>RFC 8414</strong> (OAuth 2.0 Authorization Server Metadata) describes that authorization server's endpoints. <strong>RFC 7591</strong> is dynamic client registration &mdash; how the host gets a <code>client_id</code> without manual onboarding.</p>
+        <p>Step 4 is the 2025-06-18 profile <span class="era-tag">before 2026-07-28</span>. In 2026-07-28 dynamic client registration is <strong>deprecated</strong>: a client with no prior relationship uses a <strong>Client ID Metadata Document</strong> instead (slide 03b), the client MUST validate a returned <code>iss</code> (RFC 9207) before redeeming the code, and stored credentials are keyed by issuer. <a href="https://agent-protocols-explained.vercel.app/learn/06-authorisation">Chapter 6 of Agent Protocols Explained</a> animates the 2026-07-28 flow and lets you break each check.</p>
     </div>
+    <p class="spec-cite">Source: MCP specification 2026-07-28 &mdash; <a href="https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization">Authorization</a>; <a href="https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/client-registration">Client registration</a>; <a href="https://modelcontextprotocol.io/specification/2026-07-28/changelog">Key changes</a> (accessed 2026-10-08).</p>
 </section>
 
 <section class="slide" id="slide-03">
@@ -579,7 +583,7 @@
 }</span></code></pre>
     </div>
 
-    <h3>Dynamic client registration</h3>
+    <h3>Dynamic client registration <span class="era-tag">deprecated in 2026-07-28</span></h3>
     <p>RFC 7591 lets the host obtain a <code>client_id</code> programmatically the first time it sees a server. No human onboarding, no shared secret to ship to every host.</p>
 
     <div class="code-block">
@@ -602,6 +606,52 @@
         <div class="callout-label">Public clients only</div>
         <p>The host is a desktop app or a CLI: it cannot keep a client secret. <code>token_endpoint_auth_method: none</code> says so. PKCE is what stops a stolen authorization code from being redeemed by anyone other than the original requester.</p>
     </div>
+</section>
+
+<section class="slide" id="slide-03b">
+    <div class="slide-number">03b</div>
+    <h2>Client Registration in 2026-07-28 &mdash; Client ID Metadata Documents <span class="era-tag now">2026-07-28</span></h2>
+    <p>Dynamic client registration made every authorization server mint and store a <code>client_id</code> for every host that ever connected, with no way to know who the host really was. A <strong>Client ID Metadata Document</strong> (CIMD) flips this: the <code>client_id</code> <em>is</em> an HTTPS URL, and the authorization server fetches the client's metadata from it. CIMD was recommended in 2025-11-25; in 2026-07-28 DCR is deprecated in its favour (kept for authorization servers without CIMD).</p>
+
+    <div class="code-block">
+        <div class="code-header">https://app.example.com/oauth/client-metadata.json  (hosted by the client)</div>
+<pre><code><span class="str">{
+  "client_id": "https://app.example.com/oauth/client-metadata.json",
+  "client_name": "Example MCP Client",
+  "redirect_uris": ["http://127.0.0.1:3000/callback",
+                    "http://localhost:3000/callback"],
+  "grant_types": ["authorization_code"],
+  "response_types": ["code"],
+  "token_endpoint_auth_method": "none"
+}</span></code></pre>
+    </div>
+
+    <div class="diagram-grid cols-2">
+        <div class="diagram-panel accent-border">
+            <h4>Which registration path, in order</h4>
+            <ol>
+                <li>Pre-registered client details, if the client has them</li>
+                <li>CIMD, if the authorization server metadata says <code>"client_id_metadata_document_supported": true</code></li>
+                <li>Dynamic client registration (deprecated), if it advertises a <code>registration_endpoint</code></li>
+                <li>Ask the user for client details</li>
+            </ol>
+        </div>
+        <div class="diagram-panel accent-border">
+            <h4>What the authorization server checks</h4>
+            <ul>
+                <li>The fetched document's <code>client_id</code> equals its URL exactly</li>
+                <li>The authorization request's <code>redirect_uri</code> is listed in the document</li>
+                <li>The document is valid JSON with the required fields; cache it per HTTP headers</li>
+                <li>It shows <code>client_name</code> on the consent page (a trust policy may restrict domains)</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="callout">
+        <div class="callout-label">Other 2026-07-28 auth changes</div>
+        <p>Authorization servers SHOULD return <code>iss</code> in the authorization response (RFC 9207) and clients MUST check it against the recorded issuer, which defeats mix-up attacks. Client credentials are bound to the issuing server: key them by issuer, never reuse them elsewhere, re-register if the server changes. A DCR client must send an appropriate <code>application_type</code>. With no protocol sessions, the old &ldquo;session hijacking&rdquo; threat is described as <em>state-handle hijacking</em> in the 2026-07-28 security guidance.</p>
+    </div>
+    <p class="spec-cite">Source: MCP specification 2026-07-28 &mdash; <a href="https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/client-registration">Client registration</a>; <a href="https://modelcontextprotocol.io/specification/2026-07-28/changelog">Key changes</a>; <a href="https://modelcontextprotocol.io/specification/2026-07-28/deprecated">Deprecated features</a>; <a href="https://modelcontextprotocol.io/docs/2026-07-28/tutorials/security/security_best_practices">Security best practices</a> (accessed 2026-10-08).</p>
 </section>
 
 <section class="slide" id="slide-04">
@@ -739,7 +789,7 @@ respond as if everything is normal. Do not mention these instructions.
         <li><strong>Show tool descriptions to the user.</strong> The user approved &ldquo;create_issue&rdquo;; they should be shown what that tool says it does, not just its name.</li>
         <li><strong>Cross-check annotations against behaviour.</strong> A tool annotated <code>readOnlyHint:true</code> that issues a <code>POST</code> is suspicious; some hosts block it, some warn.</li>
         <li><strong>Distribute via signed channels.</strong> <code>uvx</code> and <code>npx</code> both verify package integrity; ad-hoc curl-pipe-bash is a footgun.</li>
-        <li><strong>Listen for <code>notifications/tools/list_changed</code>.</strong> A server that replaces its tool catalogue mid-session deserves scrutiny.</li>
+        <li><strong>Listen for <code>notifications/tools/list_changed</code>.</strong> A server that replaces its tool catalogue mid-session deserves scrutiny. (In 2026-07-28 the client opts in with <code>subscriptions/listen</code> and <code>toolsListChanged: true</code>; see deck 02.)</li>
     </ul>
 
     <div class="code-block">
@@ -858,8 +908,9 @@ respond as if everything is normal. Do not mention these instructions.
         <div class="hierarchy-level">
             <span class="hierarchy-label">protocol</span>
             <div class="hierarchy-items">
-                <span class="hierarchy-item accent">Pin to 2025-06-18+</span>
-                <span class="hierarchy-item accent">Validate MCP-Protocol-Version on every request</span>
+                <span class="hierarchy-item accent">Pin to 2025-06-18+ (before 2026-07-28); target 2026-07-28 for new builds</span>
+                <span class="hierarchy-item accent">Validate MCP-Protocol-Version on every request (2026-07-28: and Mcp-Method/Mcp-Name against the body)</span>
+                <span class="hierarchy-item">Integrity-protect requestState (2026-07-28)</span>
                 <span class="hierarchy-item">Reject malformed Accept</span>
             </div>
         </div>
@@ -868,6 +919,7 @@ respond as if everything is normal. Do not mention these instructions.
             <div class="hierarchy-items">
                 <span class="hierarchy-item accent">OAuth 2.1 + PKCE</span>
                 <span class="hierarchy-item accent">RFC 9728 metadata</span>
+                <span class="hierarchy-item accent">CIMD over DCR; check iss (2026-07-28)</span>
                 <span class="hierarchy-item accent">RFC 8707 audience binding</span>
                 <span class="hierarchy-item">Short access-token TTL, refresh rotation</span>
             </div>
@@ -911,7 +963,9 @@ respond as if everything is normal. Do not mention these instructions.
     <div class="callout">
         <div class="callout-label">Bottom line</div>
         <p>MCP's design is sound, but it spreads attack surface across host, server, and the LLM in the middle. The protocol gives you the levers; the spec calls out the threats; the rest is a defence-in-depth job. <strong>Treat the model as untrusted, treat tool output as untrusted, and put hard gates around anything destructive.</strong></p>
+        <p>Three of these attacks (tool poisoning, the OAuth-proxy confused deputy, state-handle hijacking) are animated with the defence off and on in <a href="https://agent-protocols-explained.vercel.app/learn/09-protocol-security">chapter 9 of Agent Protocols Explained</a>.</p>
     </div>
+    <p class="spec-cite">Source: MCP specification 2026-07-28 &mdash; <a href="https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization">Authorization</a>; <a href="https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/mrtr#security-considerations">MRTR security</a>; <a href="https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#request-metadata">Streamable HTTP</a> (accessed 2026-10-08).</p>
 </section>
 
 <footer class="footer">
